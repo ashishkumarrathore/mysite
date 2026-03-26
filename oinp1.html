@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>OINP EOI Score Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --surface2: #f0ede6;
+  --border: #e0dbd2;
+  --text: #1a1a18;
+  --text2: #5c5a54;
+  --text3: #9a9890;
+  --accent: #1c4f3c;
+  --accent-light: #e8f2ee;
+  --accent-mid: #2d7a5c;
+  --gold: #b8860b;
+  --gold-light: #faf4e1;
+  --red: #c0392b;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.10);
+  --header-h: 60px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.6;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── Header ── */
+header {
+  background: var(--accent);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: var(--header-h);
+  box-shadow: 0 2px 12px rgba(28,79,60,0.3);
+}
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 16px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.header-logo {
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.header-logo svg { width: 18px; height: 18px; }
+.header-text { flex: 1; min-width: 0; }
+.header-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-sub { font-size: 11px; opacity: 0.65; }
+.header-badge {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (max-width: 480px) { .header-badge { display: none; } }
+
+/* ── App shell ── */
+.app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: grid;
+  grid-template-columns: 1fr 290px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* Mobile: single column; sidebar hidden; extra padding for bottom bar */
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; padding-bottom: 130px; }
+  .sidebar { display: none; }
+}
+
+/* ── Mobile fixed score bar ── */
+.mobile-score-bar {
+  display: none;
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 150;
+  background: var(--accent);
+  color: #fff;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+}
+@media (max-width: 820px) { .mobile-score-bar { display: block; } }
+
+.msb-inner {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.msb-label { font-size: 10px; opacity: 0.65; letter-spacing: 0.06em; text-transform: uppercase; }
+.msb-score { font-family: 'DM Serif Display', serif; font-size: 34px; line-height: 1; }
+.msb-of { font-size: 11px; opacity: 0.55; }
+.msb-bar-col { flex: 1; }
+.msb-bar-wrap {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 3px;
+}
+.msb-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 4px;
+  transition: width 0.35s cubic-bezier(.4,0,.2,1);
+  width: 0%;
+}
+.msb-pct { font-size: 11px; opacity: 0.65; }
+.msb-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+}
+.msb-btn:active { background: rgba(255,255,255,0.28); }
+
+/* ── Stream selector ── */
+.stream-selector {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.stream-selector-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.stream-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+}
+@media (max-width: 480px) {
+  .stream-grid { grid-template-columns: 1fr 1fr; }
+}
+.stream-btn {
+  padding: 10px 11px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  text-align: left;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+  -webkit-appearance: none;
+}
+.stream-btn .code {
+  display: block;
+  font-size: 9px;
+  opacity: 0.55;
+  margin-bottom: 3px;
+  font-weight: 400;
+}
+.stream-btn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+.stream-btn:active { opacity: 0.7; }
+
+/* ── Scoring sections ── */
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: fadeUp 0.2s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sec-head {
+  padding: 11px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.sec-icon {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.sec-head h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text2);
+  flex: 1;
+}
+.sec-pts {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-light);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Factor rows: stacked card layout (label → select below, pts badge top-right) */
+.factor-row {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.factor-row:last-child { border-bottom: none; }
+
+.factor-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.factor-label {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.4;
+  flex: 1;
+}
+.factor-label .hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+.factor-pts {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface2);
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.factor-pts.earned {
+  color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Full-width select — 14px prevents iOS auto-zoom */
+.factor-select {
+  width: 100%;
+  padding: 9px 32px 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235c5a54' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.factor-select:focus {
+  border-color: var(--accent-mid);
+  background-color: var(--surface);
+  outline: 2px solid var(--accent-light);
+  outline-offset: 1px;
+}
+
+/* ── Desktop sidebar ── */
+.sidebar { position: sticky; top: calc(var(--header-h) + 16px); }
+
+.score-panel {
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 14px;
+}
+.score-panel h3 {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.65;
+  margin-bottom: 10px;
+}
+.score-big {
+  font-family: 'DM Serif Display', serif;
+  font-size: 60px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.score-max { font-size: 12px; opacity: 0.6; margin-bottom: 18px; }
+.score-bar-wrap {
+  background: rgba(255,255,255,0.18);
+  border-radius: 5px;
+  height: 7px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.score-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 5px;
+  transition: width 0.4s cubic-bezier(.4,0,.2,1);
+  width: 0%;
+}
+.score-pct { font-size: 11px; opacity: 0.65; }
+
+.breakdown-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  margin-bottom: 14px;
+}
+.breakdown-head {
+  padding: 11px 16px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text2);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.breakdown-row:last-child { border-bottom: none; }
+.breakdown-row .sec-name { color: var(--text2); flex: 1; }
+.breakdown-row .sec-score { font-weight: 600; color: var(--accent); white-space: nowrap; }
+.breakdown-mini-bar {
+  height: 4px; border-radius: 2px;
+  background: var(--border);
+  width: 44px; flex-shrink: 0; overflow: hidden;
+}
+.breakdown-mini-fill {
+  height: 100%; background: var(--accent-mid);
+  border-radius: 2px; transition: width 0.35s;
+}
+
+.reset-btn {
+  width: 100%;
+  padding: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 14px;
+  -webkit-appearance: none;
+}
+.reset-btn:hover { border-color: var(--red); color: var(--red); background: #fff5f5; }
+
+.info-panel {
+  background: var(--gold-light);
+  border: 1px solid #e8d5a0;
+  border-radius: var(--radius);
+  padding: 13px 15px;
+  font-size: 12px;
+  color: #7a5c00;
+  line-height: 1.55;
+}
+.info-panel strong { display: block; margin-bottom: 4px; }
+
+/* ── Disclaimer ── */
+.disclaimer {
+  margin-top: 16px;
+  padding: 13px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  color: var(--text3);
+  line-height: 1.55;
+}
+.disclaimer a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-logo">
+      <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 2L13 7H17L14 11L15 16L10 13L5 16L6 11L3 7H7L10 2Z" fill="rgba(255,255,255,0.9)"/>
+      </svg>
+    </div>
+    <div class="header-text">
+      <div class="header-title">OINP EOI Score Calculator</div>
+      <div class="header-sub">Ontario Immigrant Nominee Program</div>
+    </div>
+    <div class="header-badge">Official Criteria 2024</div>
+  </div>
+</header>
+
+<!-- Mobile fixed bottom score bar (shown only on small screens) -->
+<div class="mobile-score-bar">
+  <div class="msb-inner">
+    <div>
+      <div class="msb-label">Your score</div>
+      <div>
+        <span class="msb-score" id="msbScore">0</span>
+        <span class="msb-of" id="msbOf"> / 0</span>
+      </div>
+    </div>
+    <div class="msb-bar-col">
+      <div class="msb-bar-wrap"><div class="msb-bar-fill" id="msbBar"></div></div>
+      <div class="msb-pct" id="msbPct">0% of maximum</div>
+    </div>
+    <button class="msb-btn" onclick="resetAll()">↺ Reset</button>
+  </div>
+</div>
+
+<div class="app">
+  <!-- Main form column -->
+  <div class="main-col">
+    <div class="stream-selector">
+      <div class="stream-selector-label">Select your stream</div>
+      <div class="stream-grid" id="streamGrid"></div>
+    </div>
+
+    <div id="formArea"></div>
+
+    <div class="disclaimer">
+      Built using official scoring criteria from the Government of Ontario —
+      <a href="https://www.ontario.ca/page/ontario-immigrant-nominee-program-expression-interest-system-streams" target="_blank">ontario.ca</a>.
+      For estimation only. Final scores are determined by the OINP e-Filing Portal.
+    </div>
+  </div>
+
+  <!-- Desktop sidebar (hidden on mobile) -->
+  <div class="sidebar">
+    <div class="score-panel">
+      <h3>Your EOI Score</h3>
+      <div class="score-big" id="scoreBig">0</div>
+      <div class="score-max" id="scoreMax">out of 0 points</div>
+      <div class="score-bar-wrap"><div class="score-bar-fill" id="scoreBar"></div></div>
+      <div class="score-pct" id="scorePct">0% of maximum</div>
+    </div>
+
+    <div class="breakdown-panel">
+      <div class="breakdown-head">Score by category</div>
+      <div id="breakdownRows"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">↺ Reset all answers</button>
+
+    <div class="info-panel">
+      <strong>How draws work</strong>
+      OINP selects highest-ranked candidates from each stream's pool. There is no fixed minimum — rankings are relative to other applicants in each draw.
+    </div>
+  </div>
+</div>
+
+<script>
+const STREAMS = {
+  fw:  { label:"Foreign Worker",        code:"Employer Job Offer", factors:["noc_teer","noc_broad","wage","permit","tenure","earnings","language_ability","language_knowledge","region_job"] },
+  ids: { label:"In-Demand Skills",      code:"Employer Job Offer", factors:["noc_broad","wage","permit","tenure","earnings","region_job"] },
+  is:  { label:"International Student", code:"Employer Job Offer", factors:["noc_teer","noc_broad","wage","permit","tenure","earnings","edu_level","edu_field","edu_canada","language_ability","language_knowledge","region_job","region_study"] },
+  mg:  { label:"Masters Graduate",      code:"Graduate Stream",    factors:["permit","earnings","edu_level","edu_field","edu_canada","language_ability","language_knowledge","region_study"] },
+  phd: { label:"PhD Graduate",          code:"Graduate Stream",    factors:["permit","earnings","edu_level","edu_field","edu_canada","language_ability","language_knowledge","region_study"] }
+};
+
+const SECTIONS = {
+  "Employment":      { icon:"💼", color:"#e8f2ee" },
+  "Education":       { icon:"🎓", color:"#faf4e1" },
+  "Language":        { icon:"🗣️", color:"#edf0fb" },
+  "Regionalization": { icon:"📍", color:"#fdf0ee" }
+};
+
+const FACTORS = {
+  noc_teer:          { section:"Employment",      label:"Job offer: NOC TEER category",               hint:"Based on your job offer NOC code",                      opts:[["teer01","TEER 0 or 1",10],["teer23","TEER 2 or 3",8],["teer4","TEER 4",0],["teer5","TEER 5",0]] },
+  noc_broad:         { section:"Employment",      label:"Job offer: broad occupational category",      hint:"Based on your job offer NOC code",                      opts:[["b023","Category 0, 2, 3",10],["b7","Category 7",7],["b19","Category 1, 9",5],["b48","Category 4, 8",4],["b56","Category 5, 6",3]] },
+  wage:              { section:"Employment",      label:"Job offer: hourly wage",                      hint:"Prepopulated from employer job offer",                   opts:[["w40","$40/hr or higher",10],["w35","$35–$39.99/hr",8],["w30","$30–$34.99/hr",7],["w25","$25–$29.99/hr",6],["w20","$20–$24.99/hr",5],["w0","Less than $20/hr",0]] },
+  permit:            { section:"Employment",      label:"Work or study permit status",                 hint:"Must confer legal status in Canada",                     opts:[["yes","Valid work or study permit",10],["no","No valid permit",0]] },
+  tenure:            { section:"Employment",      label:"Job tenure with job offer employer",          hint:"Work must have occurred in Ontario",                     opts:[["yes","6+ months in job offer position (Ontario)",3],["no","Less than 6 months / not yet in position",0]] },
+  earnings:          { section:"Employment",      label:"Canadian work experience: earnings history",  hint:"CRA Notice of Assessment, last 5 years",                opts:[["yes","$40k+ earnings in a year",3],["no","Less than $40k or no Canadian earnings",0]] },
+  edu_level:         { section:"Education",       label:"Highest level of education",                  hint:"Canadian credential or ECA required",                   opts:[["phd","PhD or M.D.",10],["masters","Masters",8],["bach","Bachelors or equivalent",6],["grad_dip","Graduate diploma or certificate",6],["undergrad_dip","Undergraduate diploma or certificate",5],["trades","Apprenticeship / trades certificate or diploma",5],["less","Less than college or trade certificate",0]] },
+  edu_field:         { section:"Education",       label:"Field of study",                              hint:"Field of the credential used for OINP application",     opts:[["stem","STEM / Health / Trades",12],["biz","Business, admin, social, legal, education, security, transport",6],["arts","Arts, humanities, BHASE (n.e.c.)",0]] },
+  edu_canada:        { section:"Education",       label:"Canadian education experience",               hint:"Post-secondary, eligible institution, 1+ yr full-time", opts:[["multi","More than one Canadian credential",10],["one","One Canadian credential",5],["none","No Canadian credential",0]] },
+  language_ability:  { section:"Language",        label:"Official language ability (CLB level)",        hint:"English or French proficiency",                         opts:[["clb9","CLB 9 or higher",10],["clb8","CLB 8",6],["clb7","CLB 7",4],["clb6","CLB 6 or lower",0]] },
+  language_knowledge:{ section:"Language",        label:"Knowledge of official languages",             hint:"Min CLB 7 in one + CLB 6 in second for bilingual",      opts:[["two","2 official languages",10],["one","1 official language",5]] },
+  region_job:        { section:"Regionalization", label:"Location of job offer",                       hint:"Where the job is located in Ontario",                   opts:[["north","Northern Ontario",10],["outside","Outside GTA (not Northern Ontario)",8],["gta","Inside GTA (except Toronto)",3],["toronto","City of Toronto",0]] },
+  region_study:      { section:"Regionalization", label:"Location of study (in-person classes)",       hint:"Where you physically attended classes",                 opts:[["north","Northern Ontario",10],["outside","Outside GTA (not Northern Ontario)",8],["gta","Inside GTA (except Toronto)",3],["toronto","City of Toronto",0],["none","Completed without in-person classes",0]] }
+};
+
+let currentStream = "fw";
+const state = {};
+for (const k in FACTORS) state[k] = FACTORS[k].opts[0][0];
+
+function getScore(key) {
+  const opt = FACTORS[key].opts.find(o => o[0] === state[key]);
+  return opt ? opt[2] : 0;
+}
+function groupBySection(factors) {
+  const out = {};
+  factors.forEach(k => { const s = FACTORS[k].section; if (!out[s]) out[s] = []; out[s].push(k); });
+  return out;
+}
+function sectionScore(keys) { return keys.reduce((s,k) => s + getScore(k), 0); }
+function sectionMax(keys)   { return keys.reduce((s,k) => s + Math.max(...FACTORS[k].opts.map(o => o[2])), 0); }
+function totalScore() { return STREAMS[currentStream].factors.reduce((s,k) => s + getScore(k), 0); }
+function maxScore()   { return STREAMS[currentStream].factors.reduce((s,k) => s + Math.max(...FACTORS[k].opts.map(o => o[2])), 0); }
+
+function buildStreamGrid() {
+  const g = document.getElementById('streamGrid');
+  g.innerHTML = Object.entries(STREAMS).map(([k,v]) =>
+    `<button class="stream-btn${k===currentStream?' active':''}" data-stream="${k}">
+      <span class="code">${v.code}</span>${v.label}
+    </button>`
+  ).join('');
+  g.querySelectorAll('.stream-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentStream = btn.dataset.stream;
+      buildStreamGrid(); buildForm(); updateScore();
+    });
+  });
+}
+
+function buildForm() {
+  const factors = STREAMS[currentStream].factors;
+  const sections = groupBySection(factors);
+  const formArea = document.getElementById('formArea');
+  formArea.innerHTML = '';
+  Object.entries(sections).forEach(([sec, keys]) => {
+    const si = SECTIONS[sec] || { icon:'•', color:'#f5f5f5' };
+    const sp = sectionScore(keys), sm = sectionMax(keys);
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.innerHTML =
+      `<div class="sec-head">
+        <div class="sec-icon" style="background:${si.color}">${si.icon}</div>
+        <h3>${sec}</h3>
+        <span class="sec-pts" id="sp-${sec.replace(/\s/g,'_')}">${sp} / ${sm} pts</span>
+      </div>` +
+      keys.map(k => {
+        const f = FACTORS[k], pts = getScore(k);
+        return `<div class="factor-row">
+          <div class="factor-top">
+            <div class="factor-label">${f.label}<span class="hint">${f.hint}</span></div>
+            <div class="factor-pts${pts>0?' earned':''}" id="pts-${k}">${pts} pts</div>
+          </div>
+          <select class="factor-select" data-key="${k}" onchange="onChange(this)">
+            ${f.opts.map(o=>`<option value="${o[0]}"${state[k]===o[0]?' selected':''}>${o[1]} — ${o[2]} pts</option>`).join('')}
+          </select>
+        </div>`;
+      }).join('');
+    formArea.appendChild(div);
+  });
+}
+
+function onChange(sel) {
+  const key = sel.dataset.key;
+  state[key] = sel.value;
+  const pts = getScore(key);
+  const el = document.getElementById('pts-' + key);
+  if (el) { el.textContent = pts + ' pts'; el.className = 'factor-pts' + (pts>0?' earned':''); }
+  const sec = FACTORS[key].section;
+  const secKeys = STREAMS[currentStream].factors.filter(k => FACTORS[k].section === sec);
+  const spEl = document.getElementById('sp-' + sec.replace(/\s/g,'_'));
+  if (spEl) spEl.textContent = sectionScore(secKeys) + ' / ' + sectionMax(secKeys) + ' pts';
+  updateScore();
+}
+
+function updateScore() {
+  const total = totalScore(), max = maxScore();
+  const pct = max > 0 ? Math.round(total / max * 100) : 0;
+  const pctTxt = pct + '% of maximum';
+
+  // Desktop sidebar
+  document.getElementById('scoreBig').textContent = total;
+  document.getElementById('scoreMax').textContent = 'out of ' + max + ' points';
+  document.getElementById('scoreBar').style.width = pct + '%';
+  document.getElementById('scorePct').textContent = pctTxt;
+
+  // Mobile bottom bar
+  document.getElementById('msbScore').textContent = total;
+  document.getElementById('msbOf').textContent = ' / ' + max;
+  document.getElementById('msbBar').style.width = pct + '%';
+  document.getElementById('msbPct').textContent = pctTxt;
+
+  // Breakdown (desktop only but still built)
+  const sections = groupBySection(STREAMS[currentStream].factors);
+  document.getElementById('breakdownRows').innerHTML = Object.entries(sections).map(([sec,keys]) => {
+    const sp = sectionScore(keys), sm = sectionMax(keys);
+    const fill = sm > 0 ? Math.round(sp/sm*100) : 0;
+    return `<div class="breakdown-row">
+      <span class="sec-name">${sec}</span>
+      <div class="breakdown-mini-bar"><div class="breakdown-mini-fill" style="width:${fill}%"></div></div>
+      <span class="sec-score">${sp}<span style="font-weight:400;color:var(--text3)">/${sm}</span></span>
+    </div>`;
+  }).join('');
+}
+
+function resetAll() {
+  for (const k in FACTORS) state[k] = FACTORS[k].opts[0][0];
+  buildForm(); updateScore();
+}
+
+buildStreamGrid();
+buildForm();
+updateScore();
+</script>
+</body>
+</html>
